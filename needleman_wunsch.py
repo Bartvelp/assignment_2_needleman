@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 
 """
-Author: 
+Author: Bart Grosman
+Student number: 1036073 
 
-Description: this is a script to ...
+Description: This script implements the Needleman-Wunsch algorithm and 
+executes it on a number of example strings. The BLOSUM62 scoring matrix is used
+to calculate similarity between amino acids.
+Assignment 2 for Algorithms in Bioinformatics, 2021-5-20
 
-Usage: 
+Usage: python3 needleman_wunsch.py
 """
-#import statements here
-
-
+# no imports needed
 # functions between here and __main__
 blosum = """
 # http://www.ncbi.nlm.nih.gov/Class/FieldGuide/BLOSUM62.txt
@@ -80,26 +82,40 @@ def score(res1, res2):
     lookup2 = BLOSUM62_ORDER[res2]
     return BLOSUM62_MATRIX[lookup1][lookup2]
 
-# write your own functions below here
+# My own functions
 
-def init_align_matrix(m: int, n: int):
-    """ matrix of size m (rows) * n (columns)
+def init_matrix(m: int, n: int, default_value = 0, row0_default = 0, col0_default = 0):
+    """ Gives a matrix of size m (rows) * n (columns), with passed default vals
+
+    Keyword arguments:
+    m -- Number of rows in matrix
+    n -- Number of columns in matrix
+    default_value -- value used to fill entire array
+    row0_default -- value used to overwrite the first row
+    col0_default -- value used to overwrite first column
     """
-    align_matrix = [[0 for column in range(n)] for row in range(m)]
-    return align_matrix
+    matrix = [[default_value for column in range(n)] for row in range(m)]
+    # fill first row
+    for col_num in range(n):
+        matrix[0][col_num] = row0_default
+    # fill first column
+    for row_num in range(m):
+        matrix[row_num][0] = col0_default
+    
+    return matrix
 
-def fill_matrix(seq1: str, seq2: str, p_gap: int = -8):
+def fill_matrix(seq1: str, seq2: str, p_gap: int = -8, end_gap = 0):
     m = len(seq1) + 1
     n = len(seq2) + 1
-    matrix = init_align_matrix(m, n)
-    arrow_matrix = init_align_matrix(m, n)
+    matrix = init_matrix(m, n, 0)
+    arrow_matrix = init_matrix(m, n, [], [2], [1])
 
     # fill first row
     for col_num in range(n):
-        matrix[0][col_num] = p_gap * col_num
+        matrix[0][col_num] = end_gap * col_num
     # fill first column
     for row_num in range(m):
-        matrix[row_num][0] = p_gap * row_num
+        matrix[row_num][0] = end_gap * row_num
 
     # Fill in the rest of the matrix
     for row_n in range(1, m):
@@ -112,30 +128,21 @@ def fill_matrix(seq1: str, seq2: str, p_gap: int = -8):
             gapped_1 = matrix[row_n - 1][col_n] + p_gap
             gapped_2 = matrix[row_n][col_n - 1] + p_gap
             # Now save the best possible outcome
-            print("matrix[{}][{}] {} {} {}".format(row_n, col_n, diagonal, gapped_1, gapped_2))
             arrows, best_option = get_directions([diagonal, gapped_1, gapped_2])
             matrix[row_n][col_n] = best_option
             arrow_matrix[row_n][col_n] = arrows
     return matrix, arrow_matrix
 
-def print_matrix(matrix: list[list[int]]):
-    for row in matrix:
-        print(' '.join(map(str, row)))
-
-def get_directions(direction_points):
-    max_points = max(direction_points)
-    arrows = [i for i, direction_point in enumerate(direction_points) 
-        if direction_point == max_points]
-    return arrows, max_points
-
-def traceback(arrow_matrix, seq1, seq2):
+def traceback(arrow_matrix, seq1, seq2, scoring_matrix = []):
     # We need to start at the bottom right, so get the size
     m = len(arrow_matrix)
     n = len(arrow_matrix[0])
     x, y = [m - 1, n - 1]
-    print(x, y)
+
+    if len(scoring_matrix) > 0:
+        x, y  = find_optimal(scoring_matrix)
     alignment = [] # Array of tuples [(A, A), (D, -), (W, W), ...]
-    while x != 0 and y != 0:
+    while x != 0 or y != 0:
         # Traceback our steps to the origin
         arrow = arrow_matrix[x][y][0] # Always get the first entry
         res1 = seq1[x - 1]
@@ -152,6 +159,48 @@ def traceback(arrow_matrix, seq1, seq2):
             y += -1
     return alignment
 
+# Helper functions
+def get_directions(direction_points):
+    max_points = max(direction_points)
+    arrows = [i for i, direction_point in enumerate(direction_points) 
+        if direction_point == max_points]
+    # Arrows implemented as indices, 0
+    return arrows, max_points
+
+def find_optimal(matrix):
+    """Finds the x and y from the highest value in the bottom row or 
+    right-most column
+    """
+    x, y = (0, 0)
+    best_score = float('-inf')
+    num_row = len(matrix)
+    num_col = len(matrix[0])
+
+    for col_num in range(num_col):
+        score = matrix[num_row - 1][col_num]
+        if score > best_score:
+            best_score = score
+            x, y = (num_row - 1, col_num)
+
+    for row_num in range(num_col):
+        score = matrix[row_num][num_col - 1]
+        if score > best_score:
+            best_score = score
+            x, y = (row_num, num_col - 1)
+    return x, y
+
+def calc_perc_identity(alignment):
+    num_identical_res = 0
+    for aligned_pair in aligment:
+        if (aligned_pair[0] == aligned_pair[1]):
+            num_identical_res += 1
+    perc_identity = num_identical_res / len(alignment) * 100
+    return perc_identity
+
+def print_matrix(matrix: list[list[int]]):
+    for row in matrix:
+        print(' '.join(map(str, row)))
+    
 def print_aligment(alignment):
     res1 = [res[0] for res in alignment]
     res2 = [res[1] for res in alignment]
@@ -162,11 +211,12 @@ if __name__ == "__main__":
     #print(init_align_matrix(5, 15))
     seq1 = "THISLINE"
     seq2 = "ISALIGNED"
-    matrix, arrow_matrix = fill_matrix(seq1, seq2, -4)
+    matrix, arrow_matrix = fill_matrix(seq1, seq2, -8, 0)
     print_matrix(matrix)
     print_matrix(arrow_matrix)
-    aligment = traceback(arrow_matrix, seq1, seq2)
+    aligment = traceback(arrow_matrix, seq1, seq2, matrix)
     print_aligment(aligment)
+    print(calc_perc_identity(aligment))
     # seq3: GPA1_ARATH
     seq3 = ("MGLLCSRSRHHTEDTDENTQAAEIERRIEQEAKAEKHIRKLLLLGAGESGKSTIFKQIKLLFQ"
     "TGFDEGELKSYVPVIHANVYQTIKLLHDGTKEFAQNETDSAKYMLSSESIAIGEKLSEIGGRLDYPRLTKD"
