@@ -84,7 +84,7 @@ def score(res1, res2):
 
 # My own functions
 
-def init_matrix(m: int, n: int, default_value = 0, row0_default = 0, col0_default = 0):
+def init_matrix(m: int, n: int, default_value = 0, row0_def = 0, col0_def = 0):
     """ Gives a matrix of size m (rows) * n (columns), with passed default vals
 
     Keyword arguments:
@@ -100,10 +100,10 @@ def init_matrix(m: int, n: int, default_value = 0, row0_default = 0, col0_defaul
     matrix = [[default_value for column in range(n)] for row in range(m)]
     # fill first row
     for col_num in range(n):
-        matrix[0][col_num] = row0_default
+        matrix[0][col_num] = row0_def
     # fill first column
     for row_num in range(m):
-        matrix[row_num][0] = col0_default
+        matrix[row_num][0] = col0_def
     
     return matrix
 
@@ -135,11 +135,10 @@ def needleman_wunsch(seq1: str, seq2: str, p_gap: int = -8, p_end_gap: int = 0):
     # Fill in the rest of the matrix
     for row_i in range(1, num_row):
         for col_i in range(1, num_col):
-            # first the diagonal
+            # first calculate the diagonal option, then the gapped options
             seq1_AA = seq1[row_i - 1]
             seq2_AA = seq2[col_i - 1]
             diagonal = matrix[row_i - 1][col_i - 1] + score(seq1_AA, seq2_AA)
-            # now the gapped variants
             # Take into account the end gap if moving along the last row or col
             gap_p_vertical = p_end_gap if col_i == num_col - 1 else p_gap
             gap_p_horizontal = p_end_gap if row_i == num_row - 1 else p_gap
@@ -168,11 +167,11 @@ def traceback(arrow_matrix: list, seq1: str, seq2: str):
     # We need to start at the bottom right, so get the size
     num_row = len(arrow_matrix)
     num_col = len(arrow_matrix[0])
-    x, y = [num_row - 1, num_col - 1]
+    x, y = [num_row - 1, num_col - 1] # current positions in the matrix
 
     alignment = [] # Array of tuples [(A, A), (D, -), (W, W), ...]
     
-    while x != 0 or y != 0:
+    while not (x == 0 and y == 0):
         # Traceback our steps to the origin
         arrow = arrow_matrix[x][y][0] # Always get the first entry
         res1 = seq1[x - 1]
@@ -238,8 +237,8 @@ def print_aligment(alignment: list):
 
 if __name__ == "__main__":
     seq1 = "THISLINE"
-    seq2 = "ISALIGNEDYYY"
-    matrix, arrow_matrix = needleman_wunsch(seq1, seq2, -5, -10)
+    seq2 = "ISALIGNED"
+    matrix, arrow_matrix = needleman_wunsch(seq1, seq2, -5, -1)
     print_matrix(matrix)
     print_matrix(arrow_matrix)
     aligment = traceback(arrow_matrix, seq1, seq2)
