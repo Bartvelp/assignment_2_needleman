@@ -93,6 +93,9 @@ def init_matrix(m: int, n: int, default_value = 0, row0_default = 0, col0_defaul
     default_value -- value used to fill entire array
     row0_default -- value used to overwrite the first row
     col0_default -- value used to overwrite first column
+
+    Returns:
+    Matrix plugged with the default values
     """
     matrix = [[default_value for column in range(n)] for row in range(m)]
     # fill first row
@@ -104,41 +107,64 @@ def init_matrix(m: int, n: int, default_value = 0, row0_default = 0, col0_defaul
     
     return matrix
 
-def fill_matrix(seq1: str, seq2: str, p_gap: int = -8, end_gap = 0):
+def needleman_wunsch(seq1: str, seq2: str, p_gap: int = -8, p_end_gap: int = 0):
+    """ Uses the Needleman-Wunsch algorithm to perfrom global sequence alignment
+
+    Keyword arguments:
+    seq1 -- First aminoacid sequence to be aligned
+    seq2 -- Aminoacid that seq1 is aligned with
+    p_gap -- Points for a gap in the middle of the alignment
+    p_end_gap -- Points for a gap at the end of the alignment
+
+    Returns: 
+    points_matrix -- Matrix containing the pointsas calculated by the algorithm
+    arrow_matrix -- Matrix containing all the origin arrows of points_matrix
+    """
     num_row = len(seq1) + 1
-    num_col = len(seq2) + 1 # n
+    num_col = len(seq2) + 1
     matrix = init_matrix(num_row, num_col, 0)
     arrow_matrix = init_matrix(num_row, num_col, [], [2], [1])
 
-    # fill first row
+    # fill first row with end-gap
     for col_num in range(num_col):
-        matrix[0][col_num] = end_gap * col_num
+        matrix[0][col_num] = p_end_gap * col_num
     # fill first column
     for row_num in range(num_row):
-        matrix[row_num][0] = end_gap * row_num
+        matrix[row_num][0] = p_end_gap * row_num
 
     # Fill in the rest of the matrix
-    for row_n in range(1, num_row):
-        for col_n in range(1, num_col):
+    for row_i in range(1, num_row):
+        for col_i in range(1, num_col):
             # first the diagonal
-            seq1_AA = seq1[row_n - 1]
-            seq2_AA = seq2[col_n - 1]
-            diagonal = matrix[row_n - 1][col_n - 1] + score(seq1_AA, seq2_AA)
+            seq1_AA = seq1[row_i - 1]
+            seq2_AA = seq2[col_i - 1]
+            diagonal = matrix[row_i - 1][col_i - 1] + score(seq1_AA, seq2_AA)
             # now the gapped variants
-            # Take into account the end gap if moving along the axis
-            gap_p_vertical = end_gap if col_n == num_col - 1 else p_gap
-            gap_p_horizontal = end_gap if row_n == num_row - 1 else p_gap
+            # Take into account the end gap if moving along the last row or col
+            gap_p_vertical = p_end_gap if col_i == num_col - 1 else p_gap
+            gap_p_horizontal = p_end_gap if row_i == num_row - 1 else p_gap
 
-            gapped_1 = matrix[row_n - 1][col_n] + gap_p_vertical
-            gapped_2 = matrix[row_n][col_n - 1] + gap_p_horizontal
+            gapped_1 = matrix[row_i - 1][col_i] + gap_p_vertical
+            gapped_2 = matrix[row_i][col_i - 1] + gap_p_horizontal
             # Now save the best possible outcome
             arrows, best_option = get_directions([diagonal, gapped_1, gapped_2])
-            matrix[row_n][col_n] = best_option
-            arrow_matrix[row_n][col_n] = arrows
+            matrix[row_i][col_i] = best_option
+            arrow_matrix[row_i][col_i] = arrows
     
     return matrix, arrow_matrix
 
-def traceback(arrow_matrix, seq1, seq2):
+def traceback(arrow_matrix: list, seq1: str, seq2: str):
+    """ Traces back an arrow matrix to find the optimal alignment of 2 sequences
+
+    Keyword arguments:
+    arrow_matrix -- Matrix containing all the origin arrows of a points matrix
+    seq1 -- First aminoacid sequence to be aligned
+    seq2 -- Aminoacid that seq1 is aligned with
+
+    Returns: 
+    alignment -- The aligned sequences, in the form:
+    Array of tuples [(A, A), (D, -), (W, W), ...]
+    """
     # We need to start at the bottom right, so get the size
     num_row = len(arrow_matrix)
     num_col = len(arrow_matrix[0])
@@ -164,14 +190,31 @@ def traceback(arrow_matrix, seq1, seq2):
     return alignment
 
 # Helper functions
-def get_directions(direction_points):
+def get_directions(direction_points: list):
+    """ Calculates the optimal direction to proceed in sequence alignment
+
+    Keyword arguments:
+    direction_points -- list containing: [point_diag, points_vert, point_hor]
+
+    Returns: 
+    arrows -- list of inidices of directions with the maximum number of points
+    max_points -- number of points of the best option
+    """
     max_points = max(direction_points)
     arrows = [i for i, direction_point in enumerate(direction_points) 
         if direction_point == max_points]
     # Arrows implemented as indices, 0
     return arrows, max_points
 
-def calc_perc_identity(alignment):
+def calc_perc_identity(alignment: list):
+    """ Calculates the percent identity of an alignment
+
+    Keyword arguments:
+    alignment -- List of alignment like: [(A, A), (D, -), (W, W), ...]
+
+    Returns: 
+    perc_identity -- Percentage of identical residues in the alignment
+    """
     num_identical_res = 0
     for aligned_pair in aligment:
         if (aligned_pair[0] == aligned_pair[1]):
@@ -180,10 +223,14 @@ def calc_perc_identity(alignment):
     return perc_identity
 
 def print_matrix(matrix: list):
+    """ Prints an matrix in an easily readable format
+    """
     for row in matrix:
         print(' '.join(map(str, row)))
     
-def print_aligment(alignment):
+def print_aligment(alignment: list):
+    """ Prints an alignment in an easily readable format
+    """
     res1 = [res[0] for res in alignment]
     res2 = [res[1] for res in alignment]
     print(''.join(res1))
@@ -192,7 +239,7 @@ def print_aligment(alignment):
 if __name__ == "__main__":
     seq1 = "THISLINE"
     seq2 = "ISALIGNEDYYY"
-    matrix, arrow_matrix = fill_matrix(seq1, seq2, -5, -10)
+    matrix, arrow_matrix = needleman_wunsch(seq1, seq2, -5, -10)
     print_matrix(matrix)
     print_matrix(arrow_matrix)
     aligment = traceback(arrow_matrix, seq1, seq2)
@@ -216,7 +263,7 @@ if __name__ == "__main__":
     "EKKVLDVPLNVCEWFRDYQPVSSGKQEIEHAYEFVKKKFEELYYQNTAPDRVDRVFKIYR"
     "TTALDQKLVKKTFKLVDETLRRRNLLEAGLL")
 
-    matrix, arrow_matrix = fill_matrix(seq3, seq4, -5, -1)
+    matrix, arrow_matrix = needleman_wunsch(seq3, seq4, -5, -1)
     print(matrix[len(seq3)][len(seq4)])
 
     aligment = traceback(arrow_matrix, seq3, seq4)
