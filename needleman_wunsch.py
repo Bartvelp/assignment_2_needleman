@@ -105,43 +105,60 @@ def init_matrix(m: int, n: int, default_value = 0, row0_default = 0, col0_defaul
     return matrix
 
 def fill_matrix(seq1: str, seq2: str, p_gap: int = -8, end_gap = 0):
-    m = len(seq1) + 1
-    n = len(seq2) + 1
-    matrix = init_matrix(m, n, 0)
-    arrow_matrix = init_matrix(m, n, [], [2], [1])
+    num_row = len(seq1) + 1
+    num_col = len(seq2) + 1 # n
+    matrix = init_matrix(num_row, num_col, 0)
+    arrow_matrix = init_matrix(num_row, num_col, [], [2], [1])
 
     # fill first row
-    for col_num in range(n):
+    for col_num in range(num_col):
         matrix[0][col_num] = end_gap * col_num
     # fill first column
-    for row_num in range(m):
+    for row_num in range(num_row):
         matrix[row_num][0] = end_gap * row_num
 
     # Fill in the rest of the matrix
-    for row_n in range(1, m):
-        for col_n in range(1, n):
+    for row_n in range(1, num_row):
+        for col_n in range(1, num_col):
             # first the diagonal
             seq1_AA = seq1[row_n - 1]
             seq2_AA = seq2[col_n - 1]
             diagonal = matrix[row_n - 1][col_n - 1] + score(seq1_AA, seq2_AA)
             # now the gapped variants
-            gapped_1 = matrix[row_n - 1][col_n] + p_gap
-            gapped_2 = matrix[row_n][col_n - 1] + p_gap
+            # Take into account the end gap if moving along the axis
+            gap_p_vertical = end_gap if col_n == num_col - 1 else p_gap
+            gap_p_horizontal = end_gap if row_n == col_num - 1 else p_gap
+
+            gapped_1 = matrix[row_n - 1][col_n] + gap_p_vertical
+            gapped_2 = matrix[row_n][col_n - 1] + gap_p_horizontal
             # Now save the best possible outcome
             arrows, best_option = get_directions([diagonal, gapped_1, gapped_2])
             matrix[row_n][col_n] = best_option
             arrow_matrix[row_n][col_n] = arrows
+    
     return matrix, arrow_matrix
 
 def traceback(arrow_matrix, seq1, seq2, scoring_matrix = []):
     # We need to start at the bottom right, so get the size
-    m = len(arrow_matrix)
-    n = len(arrow_matrix[0])
-    x, y = [m - 1, n - 1]
+    num_row = len(arrow_matrix)
+    num_col = len(arrow_matrix[0])
+    x, y = [num_row - 1, num_col - 1]
 
+    alignment = [] # Array of tuples [(A, A), (D, -), (W, W), ...]
     if len(scoring_matrix) > 0:
         x, y  = find_optimal(scoring_matrix)
-    alignment = [] # Array of tuples [(A, A), (D, -), (W, W), ...]
+        # Since we don't start at the bottom right cell anymore, we need to 
+        # add the end's of the sequences manually to the alignment
+        if x != num_row - 1:
+            remaining_res = range(x, num_row)
+            for res_i in remaining_res:
+                alignment.append((seq1[res_i], '-'))
+        elif y != num_col -1:
+            remaining_res = range(y, num_col -1)
+            for res_i in remaining_res:
+                alignment.append(('-', seq2[res_i]))
+
+    
     while x != 0 or y != 0:
         # Traceback our steps to the origin
         arrow = arrow_matrix[x][y][0] # Always get the first entry
@@ -182,7 +199,7 @@ def find_optimal(matrix):
             best_score = score
             x, y = (num_row - 1, col_num)
 
-    for row_num in range(num_col):
+    for row_num in range(num_row):
         score = matrix[row_num][num_col - 1]
         if score > best_score:
             best_score = score
@@ -197,7 +214,7 @@ def calc_perc_identity(alignment):
     perc_identity = num_identical_res / len(alignment) * 100
     return perc_identity
 
-def print_matrix(matrix: list[list[int]]):
+def print_matrix(matrix: list):
     for row in matrix:
         print(' '.join(map(str, row)))
     
@@ -214,7 +231,7 @@ if __name__ == "__main__":
     matrix, arrow_matrix = fill_matrix(seq1, seq2, -8, 0)
     print_matrix(matrix)
     print_matrix(arrow_matrix)
-    aligment = traceback(arrow_matrix, seq1, seq2, matrix)
+    aligment = traceback(arrow_matrix, seq1, seq2)
     print_aligment(aligment)
     print(calc_perc_identity(aligment))
     # seq3: GPA1_ARATH
