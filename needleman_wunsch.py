@@ -127,7 +127,7 @@ def fill_matrix(seq1: str, seq2: str, p_gap: int = -8, end_gap = 0):
             # now the gapped variants
             # Take into account the end gap if moving along the axis
             gap_p_vertical = end_gap if col_n == num_col - 1 else p_gap
-            gap_p_horizontal = end_gap if row_n == col_num - 1 else p_gap
+            gap_p_horizontal = end_gap if row_n == num_row - 1 else p_gap
 
             gapped_1 = matrix[row_n - 1][col_n] + gap_p_vertical
             gapped_2 = matrix[row_n][col_n - 1] + gap_p_horizontal
@@ -138,26 +138,13 @@ def fill_matrix(seq1: str, seq2: str, p_gap: int = -8, end_gap = 0):
     
     return matrix, arrow_matrix
 
-def traceback(arrow_matrix, seq1, seq2, scoring_matrix = []):
+def traceback(arrow_matrix, seq1, seq2):
     # We need to start at the bottom right, so get the size
     num_row = len(arrow_matrix)
     num_col = len(arrow_matrix[0])
     x, y = [num_row - 1, num_col - 1]
 
     alignment = [] # Array of tuples [(A, A), (D, -), (W, W), ...]
-    if len(scoring_matrix) > 0:
-        x, y  = find_optimal(scoring_matrix)
-        # Since we don't start at the bottom right cell anymore, we need to 
-        # add the end's of the sequences manually to the alignment
-        if x != num_row - 1:
-            remaining_res = range(x, num_row)
-            for res_i in remaining_res:
-                alignment.append((seq1[res_i], '-'))
-        elif y != num_col -1:
-            remaining_res = range(y, num_col -1)
-            for res_i in remaining_res:
-                alignment.append(('-', seq2[res_i]))
-
     
     while x != 0 or y != 0:
         # Traceback our steps to the origin
@@ -184,28 +171,6 @@ def get_directions(direction_points):
     # Arrows implemented as indices, 0
     return arrows, max_points
 
-def find_optimal(matrix):
-    """Finds the x and y from the highest value in the bottom row or 
-    right-most column
-    """
-    x, y = (0, 0)
-    best_score = float('-inf')
-    num_row = len(matrix)
-    num_col = len(matrix[0])
-
-    for col_num in range(num_col):
-        score = matrix[num_row - 1][col_num]
-        if score > best_score:
-            best_score = score
-            x, y = (num_row - 1, col_num)
-
-    for row_num in range(num_row):
-        score = matrix[row_num][num_col - 1]
-        if score > best_score:
-            best_score = score
-            x, y = (row_num, num_col - 1)
-    return x, y
-
 def calc_perc_identity(alignment):
     num_identical_res = 0
     for aligned_pair in aligment:
@@ -225,15 +190,15 @@ def print_aligment(alignment):
     print(''.join(res2))
 
 if __name__ == "__main__":
-    #print(init_align_matrix(5, 15))
     seq1 = "THISLINE"
-    seq2 = "ISALIGNED"
-    matrix, arrow_matrix = fill_matrix(seq1, seq2, -8, 0)
+    seq2 = "ISALIGNEDYYY"
+    matrix, arrow_matrix = fill_matrix(seq1, seq2, -5, -10)
     print_matrix(matrix)
     print_matrix(arrow_matrix)
     aligment = traceback(arrow_matrix, seq1, seq2)
     print_aligment(aligment)
-    print(calc_perc_identity(aligment))
+    print("Score", matrix[len(seq1)][len(seq2)])
+    print("PI", calc_perc_identity(aligment))
     # seq3: GPA1_ARATH
     seq3 = ("MGLLCSRSRHHTEDTDENTQAAEIERRIEQEAKAEKHIRKLLLLGAGESGKSTIFKQIKLLFQ"
     "TGFDEGELKSYVPVIHANVYQTIKLLHDGTKEFAQNETDSAKYMLSSESIAIGEKLSEIGGRLDYPRLTKD"
@@ -251,3 +216,11 @@ if __name__ == "__main__":
     "EKKVLDVPLNVCEWFRDYQPVSSGKQEIEHAYEFVKKKFEELYYQNTAPDRVDRVFKIYR"
     "TTALDQKLVKKTFKLVDETLRRRNLLEAGLL")
 
+    matrix, arrow_matrix = fill_matrix(seq3, seq4, -5, -1)
+    print(matrix[len(seq3)][len(seq4)])
+
+    aligment = traceback(arrow_matrix, seq3, seq4)
+    print_aligment(aligment)
+    print(calc_perc_identity(aligment))
+    print("Score", matrix[len(seq3)][len(seq4)])
+    print("PI", calc_perc_identity(aligment))
