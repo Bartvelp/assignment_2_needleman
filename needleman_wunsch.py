@@ -146,7 +146,7 @@ def needleman_wunsch(seq1: str, seq2: str, p_gap: int = -8, p_end_gap: int = 0):
             gapped_1 = matrix[row_i - 1][col_i] + gap_p_vertical
             gapped_2 = matrix[row_i][col_i - 1] + gap_p_horizontal
             # Now save the best possible outcome
-            arrows, best_option = get_directions([diagonal, gapped_1, gapped_2])
+            arrows, best_option = get_directions(diagonal, gapped_1, gapped_2)
             matrix[row_i][col_i] = best_option
             arrow_matrix[row_i][col_i] = arrows
     
@@ -183,22 +183,25 @@ def traceback(arrow_matrix: list, seq1: str, seq2: str):
         elif arrow == 1: # Vertical
             alignment.insert(0, (res1, '-'))
             x += -1
-        elif arrow == 2: # horizontal   
+        elif arrow == 2: # Horizontal   
             alignment.insert(0, ('-', res2))
             y += -1
     return alignment
 
 # Helper functions
-def get_directions(direction_points: list):
+def get_directions(points_diag: int, points_vert: int, points_hor: int):
     """ Calculates the optimal direction to proceed in sequence alignment
 
     Keyword arguments:
-    direction_points -- list containing: [point_diag, points_vert, point_hor]
+    points_diag -- Points associated with pairing residues of seq1 and seq2
+    points_vert -- Points associated with introducing a gap in sequence 2
+    points_hor -- Points associated with introducing a gap in sequence 1
 
     Returns: 
     arrows -- list of inidices of directions with the maximum number of points
     max_points -- number of points of the best option
     """
+    direction_points = [points_diag, points_vert, points_hor]
     max_points = max(direction_points)
     arrows = [i for i, direction_point in enumerate(direction_points) 
         if direction_point == max_points]
@@ -215,7 +218,7 @@ def calc_perc_identity(alignment: list):
     perc_identity -- Percentage of identical residues in the alignment
     """
     num_identical_res = 0
-    for aligned_pair in aligment:
+    for aligned_pair in alignment:
         if (aligned_pair[0] == aligned_pair[1]):
             num_identical_res += 1
     perc_identity = num_identical_res / len(alignment) * 100
@@ -227,7 +230,7 @@ def print_matrix(matrix: list):
     for row in matrix:
         print(' '.join(map(str, row)))
     
-def print_aligment(alignment: list):
+def print_alignment(alignment: list):
     """ Prints an alignment in an easily readable format
     """
     res1 = [res[0] for res in alignment]
@@ -235,16 +238,31 @@ def print_aligment(alignment: list):
     print(''.join(res1))
     print(''.join(res2))
 
+def show_alignment(seq1: str, seq2: str, p_gap: int, p_end_gap: int):
+    """ Print the optimal alignment of 2 sequences in the standard out
+
+    Keyword arguments:
+    seq1 -- First aminoacid sequence to be aligned
+    seq2 -- Aminoacid that seq1 is aligned with
+    p_gap -- Points for a gap in the middle of the alignment
+    p_end_gap -- Points for a gap at the end of the alignment
+    """
+    matrix, arrow_matrix = needleman_wunsch(seq1, seq2, p_gap, p_end_gap)
+    alignment = traceback(arrow_matrix, seq1, seq2)
+    print(f"Alignment seq1 & seq2, p gap = {p_gap}, p end gap = {p_end_gap}")
+    print_alignment(alignment)
+    print("Score:", matrix[len(seq1)][len(seq2)])
+    print("PI: {:.2f}%".format(calc_perc_identity(alignment)))
+    print("-" * 10)
+
 if __name__ == "__main__":
     seq1 = "THISLINE"
     seq2 = "ISALIGNED"
-    matrix, arrow_matrix = needleman_wunsch(seq1, seq2, -5, -1)
-    print_matrix(matrix)
-    print_matrix(arrow_matrix)
-    aligment = traceback(arrow_matrix, seq1, seq2)
-    print_aligment(aligment)
-    print("Score", matrix[len(seq1)][len(seq2)])
-    print("PI", calc_perc_identity(aligment))
+
+    show_alignment(seq1, seq2, -8, -8) # Reproduce figure 5.9
+    show_alignment(seq1, seq2, -4, -4) # Reproduce figure 5.11
+    show_alignment(seq1, seq2, -8, 0) # Reproduce figure 5.12
+
     # seq3: GPA1_ARATH
     seq3 = ("MGLLCSRSRHHTEDTDENTQAAEIERRIEQEAKAEKHIRKLLLLGAGESGKSTIFKQIKLLFQ"
     "TGFDEGELKSYVPVIHANVYQTIKLLHDGTKEFAQNETDSAKYMLSSESIAIGEKLSEIGGRLDYPRLTKD"
@@ -262,11 +280,6 @@ if __name__ == "__main__":
     "EKKVLDVPLNVCEWFRDYQPVSSGKQEIEHAYEFVKKKFEELYYQNTAPDRVDRVFKIYR"
     "TTALDQKLVKKTFKLVDETLRRRNLLEAGLL")
 
-    matrix, arrow_matrix = needleman_wunsch(seq3, seq4, -5, -1)
-    print(matrix[len(seq3)][len(seq4)])
-
-    aligment = traceback(arrow_matrix, seq3, seq4)
-    print_aligment(aligment)
-    print(calc_perc_identity(aligment))
-    print("Score", matrix[len(seq3)][len(seq4)])
-    print("PI", calc_perc_identity(aligment))
+    # Question 3
+    show_alignment(seq3, seq4, -5, -1)
+    show_alignment(seq3, seq4, -5, -10)
