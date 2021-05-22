@@ -239,7 +239,7 @@ def print_alignment(alignment: list):
     print(''.join(res2))
 
 def show_alignment(seq1: str, seq2: str, p_gap: int, p_end_gap: int):
-    """ Print the optimal alignment of 2 sequences in the standard out
+    """ Print the optimal alignment of 2 sequences in standard out
 
     Keyword arguments:
     seq1 -- First aminoacid sequence to be aligned
